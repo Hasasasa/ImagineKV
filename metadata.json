@@ -1,5 +1,0 @@
-{
-  "name": "Gemini 3 Pro Imagine",
-  "description": "A high-fidelity image generation application using the Gemini 3 Pro model with support for text-to-image and image-to-image workflows.",
-  "requestFramePermissions": []
-}
