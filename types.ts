@@ -1,9 +1,14 @@
 export enum AspectRatio {
   Square = "1:1",
+  Portrait23 = "2:3",
+  Landscape32 = "3:2",
   Portrait = "3:4",
   Landscape = "4:3",
+  Portrait45 = "4:5",
+  Landscape54 = "5:4",
   Wide = "16:9",
   Tall = "9:16",
+  UltraWide = "21:9",
 }
 
 export enum ImageSize {

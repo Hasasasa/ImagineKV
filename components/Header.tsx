@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, Sparkles, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Settings, CheckCircle2, AlertCircle } from 'lucide-react';
+import logoUrl from '../logo/logo.png';
 
 interface HeaderProps {
   onOpenSettings: () => void;
@@ -24,11 +25,11 @@ const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
     <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
       <div className="container mx-auto px-6 h-16 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="bg-black text-white p-2 rounded-lg shadow-lg">
-            <Sparkles className="w-5 h-5 fill-white" />
+          <div className="bg-white w-10 h-10 rounded-lg shadow-sm border border-slate-200 overflow-hidden flex items-center justify-center">
+            <img src={logoUrl} alt="ImagineKV" className="w-12 h-12 object-contain -ml-1" />
           </div>
           <h1 className="font-bold text-xl tracking-tight text-slate-900">
-            Imagine <span className="text-slate-400 font-medium">Poster Creator</span>
+            ImagineKV
           </h1>
         </div>
 

@@ -3,7 +3,7 @@ import { Upload, X, Loader2, ListPlus, Trash2, Play, CheckCircle2, AlertCircle, 
 import { AspectRatio, ImageSize, GenerationConfig, BatchItem } from '../types';
 import PromptSplitter from './PromptSplitter';
 import { ParsedPrompt } from '../utils/promptParser';
-import { analyzeImageAndGeneratePrompts } from '../services/geminiService';
+import { analyzeImageAndGeneratePromptsUnified } from '../services/apiService';
 import { fileToBase64 } from '../utils/imageUtils';
 
 interface ControlPanelProps {
@@ -49,7 +49,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
       setIsAnalyzing(true);
       try {
           const base64 = await fileToBase64(selectedImage);
-          const result = await analyzeImageAndGeneratePrompts(base64, selectedImage.type, {
+          const result = await analyzeImageAndGeneratePromptsUnified(base64, selectedImage.type, {
               brandName: config.brandName,
               customRequirements: config.customRequirements,
               language: config.language,
@@ -125,8 +125,15 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-medium focus:ring-2 focus:ring-indigo-500/20"
               >
                 <option value={AspectRatio.Square}>1:1 方形</option>
+                <option value={AspectRatio.Portrait23}>2:3 竖版</option>
+                <option value={AspectRatio.Landscape32}>3:2 横版</option>
+                <option value={AspectRatio.Portrait}>3:4 竖版</option>
+                <option value={AspectRatio.Landscape}>4:3 横版</option>
+                <option value={AspectRatio.Portrait45}>4:5 竖版</option>
+                <option value={AspectRatio.Landscape54}>5:4 横版</option>
                 <option value={AspectRatio.Tall}>9:16 竖屏</option>
                 <option value={AspectRatio.Wide}>16:9 宽屏</option>
+                <option value={AspectRatio.UltraWide}>21:9 超宽屏</option>
               </select>
             </div>
             <div className="space-y-1.5">
@@ -136,6 +143,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 onChange={e => setConfig({...config, imageSize: e.target.value as ImageSize})}
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-medium"
               >
+                <option value={ImageSize.OneK}>1K 标清</option>
                 <option value={ImageSize.TwoK}>2K 高清</option>
                 <option value={ImageSize.FourK}>4K 超清</option>
               </select>

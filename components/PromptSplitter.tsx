@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X, Layers, FileText, Trash2, Plus, GripVertical, Sparkles, ChevronDown } from 'lucide-react';
+import { X, Layers, Trash2, Plus, GripVertical, Sparkles, ChevronDown } from 'lucide-react';
 import { parseBulkPrompts, ParsedPrompt } from '../utils/promptParser';
+import logoUrl from '../logo/logo.png';
 
 interface PromptSplitterProps {
   isOpen: boolean;
@@ -16,14 +17,30 @@ const PromptSplitter: React.FC<PromptSplitterProps> = ({ isOpen, onClose, onImpo
   const [items, setItems] = useState<ParsedPrompt[]>([]);
   const [reportText, setReportText] = useState('');
 
+  const normalizeEscapedNewlines = (text: string) =>
+    text
+      .replace(/\\r\\n/g, '\n')
+      .replace(/\\n/g, '\n')
+      .replace(/\\t/g, '\t');
+
   useEffect(() => {
     if (isOpen) {
-        if (initialText) setReportText(initialText);
+        if (initialText) setReportText(normalizeEscapedNewlines(initialText));
         if (initialPrompts && initialPrompts.length > 0) {
-            setItems(initialPrompts);
+            setItems(initialPrompts.map(p => ({
+              ...p,
+              title: normalizeEscapedNewlines(p.title || ''),
+              prompt: normalizeEscapedNewlines(p.prompt || ''),
+              negativePrompt: normalizeEscapedNewlines(p.negativePrompt || ''),
+            })));
         } else if (initialText) {
-             const parsed = parseBulkPrompts(initialText);
-             setItems(parsed);
+             const parsed = parseBulkPrompts(normalizeEscapedNewlines(initialText));
+             setItems(parsed.map(p => ({
+               ...p,
+               title: normalizeEscapedNewlines(p.title || ''),
+               prompt: normalizeEscapedNewlines(p.prompt || ''),
+               negativePrompt: normalizeEscapedNewlines(p.negativePrompt || ''),
+             })));
         }
     }
   }, [isOpen, initialText, initialPrompts]);
@@ -57,7 +74,20 @@ const PromptSplitter: React.FC<PromptSplitterProps> = ({ isOpen, onClose, onImpo
   const renderReportContent = (text: string) => {
     if (!text) return <p className="text-gray-400 text-sm italic">暂无分析内容...</p>;
 
+    text = normalizeEscapedNewlines(text);
     let cleanText = text.replace(/^#+\s*.*(Step 1|第一步|产品分析报告).*$/im, '').trim();
+
+    // 截断“第二步/第三步”等后续说明（只保留产品分析报告部分）
+    const cutMatch = cleanText.match(/(^|\n)\s*(---\s*\n)?\s*#+\s*(Step\s*2|Step\s*3|第二步|第三步)\b[\s\S]*$/im);
+    if (cutMatch && typeof cutMatch.index === 'number') {
+      cleanText = cleanText.slice(0, cutMatch.index).trim();
+    }
+    // 兜底：有些输出不会用 Markdown 标题，直接包含“第二步/第三步”行
+    const plainCut = cleanText.search(/(^|\n)\s*(第二步|第三步)\s*[:：]/m);
+    if (plainCut >= 0) {
+      cleanText = cleanText.slice(0, plainCut).trim();
+    }
+    cleanText = cleanText.replace(/\n---\s*$/m, '').trim();
     cleanText = cleanText.replace(/^(\d+\.)\s*[\n\r]+(?=\S)/gm, '$1 ');
     cleanText = cleanText.replace(/(\*\*.*?\*\*[:：])\s*[\n\r]+(?=\S)/gm, '$1 ');
     cleanText = cleanText.replace(/([^\n])\s+([\-•\*]\s+)/g, '$1\n$2');
@@ -113,8 +143,8 @@ const PromptSplitter: React.FC<PromptSplitterProps> = ({ isOpen, onClose, onImpo
         
         <div className="flex items-center justify-between p-5 border-b border-slate-100 bg-white">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-black text-white rounded-lg">
-                <FileText className="w-5 h-5" />
+            <div className="bg-white w-10 h-10 rounded-lg shadow-sm border border-slate-200 overflow-hidden flex items-center justify-center">
+                 <img src={logoUrl} alt="ImagineKV" className="w-12 h-12 object-contain -ml-1" />
             </div>
             <h3 className="font-bold text-lg text-slate-900">
               海报生成方案确认

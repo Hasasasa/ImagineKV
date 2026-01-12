@@ -6,7 +6,7 @@ import GalleryModal from './components/GalleryModal';
 import ImagePreviewModal from './components/ImagePreviewModal';
 import SettingsModal from './components/SettingsModal';
 import { GeneratedImage, GenerationConfig, AspectRatio, ImageSize, BatchItem } from './types';
-import { generateImageContent } from './services/geminiService';
+import { generateImageContentUnified } from './services/apiService';
 import { fileToBase64 } from './utils/imageUtils';
 
 const App: React.FC = () => {
@@ -50,7 +50,7 @@ const App: React.FC = () => {
         const itemsToProcess = batchQueue.filter(item => item.status === 'idle' || item.status === 'error');
         const promises = itemsToProcess.map(async (item) => {
             try {
-                const imageUrl = await generateImageContent(item.prompt, base64Image, mime, config);
+                const imageUrl = await generateImageContentUnified(item.prompt, base64Image, mime, config);
                 setBatchQueue(currentQueue => currentQueue.map(i => i.id === item.id ? { ...i, status: 'success', imageUrl } : i));
             } catch (err: any) {
                 setBatchQueue(currentQueue => currentQueue.map(i => i.id === item.id ? { ...i, status: 'error', error: err.message } : i));

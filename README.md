@@ -1,20 +1,27 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# ImagineKV
 
-# Run and deploy your AI Studio app
-
-This contains everything you need to run your app locally.
-
-View your app in AI Studio: https://ai.studio/apps/drive/1HopOZUHC9Cj8-YmXj0lMvTXbsJsrGGYl
+[中文说明 / README.zh-CN](README.zh-CN.md)
 
 ## Run Locally
 
-**Prerequisites:**  Node.js
+**Prerequisites:** Node.js 18+
 
+1. Install dependencies: `npm install`
+2. Start dev server: `npm run dev`
+3. Open: `http://localhost:3000`
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## API Configuration
+
+Open the top-right **API Configuration** button to set:
+
+- **Request Mode**: Official / Third Party
+- **Third Party Protocol** (when using Third Party):
+  - **Gemini Native**: `.../v1beta/models/*:generateContent`
+  - **OpenAI Format**: `.../v1/*` (e.g. OneAPI / OpenRouter compatible endpoints)
+- **API Key** and **Base URL / Third-party URL**
+- **Test** button to validate connectivity
+
+Notes:
+
+- OpenAI-format providers often require paths like `https://openrouter.ai/api` (not just `https://openrouter.ai`).
+- Some providers block browser requests via CORS; in that case you need a server-side proxy.
