@@ -1,5 +1,10 @@
 # ImagineKV
 
+视频介绍：
+
+- YouTube: https://youtu.be/pf0JESYm2gc
+- Bilibili: https://www.bilibili.com/video/BV1wfrVB1E3T
+
 [English / README](README.md)
 
 ## 本地运行
@@ -25,4 +30,3 @@
 
 - OpenAI 格式的服务很多需要带 `api` 路径，例如 OpenRouter 应填写 `https://openrouter.ai/api`（而不是 `https://openrouter.ai`）。
 - 部分第三方会限制浏览器跨域（CORS），这时前端直连会失败，需要你自己加一个后端/反向代理来转发请求。
-

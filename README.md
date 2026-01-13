@@ -1,5 +1,10 @@
 # ImagineKV
 
+Video introduction:
+
+- YouTube: https://youtu.be/pf0JESYm2gc
+- Bilibili: https://www.bilibili.com/video/BV1wfrVB1E3T
+
 [中文说明 / README.zh-CN](README.zh-CN.md)
 
 ## Run Locally
