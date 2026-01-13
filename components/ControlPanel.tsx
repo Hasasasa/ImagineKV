@@ -115,7 +115,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         {/* Configuration */}
         <div className="space-y-4">
           <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">第二步: 偏好设置</label>
-          
+
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <span className="text-xs font-medium text-slate-500 ml-1">比例</span>
@@ -146,6 +146,53 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 <option value={ImageSize.OneK}>1K 标清</option>
                 <option value={ImageSize.TwoK}>2K 高清</option>
                 <option value={ImageSize.FourK}>4K 超清</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <span className="text-xs font-medium text-slate-500 ml-1">语言</span>
+              <select
+                value={config.language}
+                onChange={e => setConfig({ ...config, language: e.target.value as any })}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-medium focus:ring-2 focus:ring-indigo-500/20"
+              >
+                <option value="zh">CN 中文</option>
+                <option value="en">US English</option>
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <span className="text-xs font-medium text-slate-500 ml-1">视觉风格</span>
+              <select
+                value={config.visualStyle || 'auto'}
+                onChange={e => setConfig({ ...config, visualStyle: e.target.value })}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-medium focus:ring-2 focus:ring-indigo-500/20"
+              >
+                <option value="auto">✨ AI 智能推荐</option>
+                <option value="杂志编辑风">📰 杂志编辑风</option>
+                <option value="水彩艺术风">🎨 水彩艺术风</option>
+                <option value="科技未来风">🧠 科技未来风</option>
+                <option value="复古胶片风">📼 复古胶片风</option>
+                <option value="极简北欧风">❄️ 极简北欧风</option>
+                <option value="霓虹赛博风">🌃 霓虹赛博风</option>
+                <option value="自然有机风">🌿 自然有机风</option>
+              </select>
+            </div>
+            <div className="space-y-1.5 col-span-2">
+              <span className="text-xs font-medium text-slate-500 ml-1">文字排版效果</span>
+              <select
+                value={config.typographyStyle || 'auto'}
+                onChange={e => setConfig({ ...config, typographyStyle: e.target.value })}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-medium focus:ring-2 focus:ring-indigo-500/20"
+              >
+                <option value="auto">✨ AI 智能推荐</option>
+                <option value="手写体（艺术）">✍️ 手写体（艺术）</option>
+                <option value="粗衬线（杂志）">🖋️ 粗衬线（杂志）</option>
+                <option value="玻璃拟态（现代）">💧 玻璃拟态（现代）</option>
+                <option value="3D浮雕（奢华）">🧊 3D 浮雕（奢华）</option>
+                <option value="无衬线（赛博）">⚡ 无衬线（赛博）</option>
+                <option value="极细线条（极简）">🪡 极细线条（极简）</option>
               </select>
             </div>
           </div>

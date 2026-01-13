@@ -13,14 +13,20 @@ const normalizeBaseUrl = (url: string) => url.replace(/\/+$/, "");
 const buildGenerateContentUrl = (baseUrl: string, model: string) =>
   `${normalizeBaseUrl(baseUrl)}/v1beta/models/${encodeURIComponent(model)}:generateContent`;
 
-const fetchWithTimeout = async (input: RequestInfo | URL, init: RequestInit, timeoutMs = 30000) => {
+const fetchWithTimeout = async (
+  input: RequestInfo | URL,
+  init: RequestInit,
+  timeoutMs = 30000
+) => {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
     return await fetch(input, { ...init, signal: controller.signal });
   } catch (e: any) {
     if (e?.name === "AbortError") {
-      throw new Error(`第三方请求超时（${Math.round(timeoutMs / 1000)}s），请检查网络/第三方网关或调低输出量`);
+      throw new Error(
+        `第三方请求超时（${Math.round(timeoutMs / 1000)}s），请检查网络/第三方网关或调低输出量`
+      );
     }
     throw e;
   } finally {
@@ -72,10 +78,10 @@ export const analyzeImageAndGeneratePromptsThirdParty = async (
 ): Promise<AnalysisResult> => {
   const { apiKey, baseUrl } = getThirdPartyConfig();
   if (!apiKey) {
-    throw new Error("璇峰厛鐐瑰嚮鍙充笂瑙掋€愰厤缃?API銆戝～鍐欐偍鐨?API Key");
+    throw new Error("请先点击右上角【配置 API】填写您的 API Key");
   }
   if (!baseUrl) {
-    throw new Error("璇峰厛鍦?API 閰嶇疆涓€夋嫨绗涓夋柟璇锋眰骞跺～鍐欑涓夋柟 URL");
+    throw new Error("请先在 API 配置中选择第三方请求并填写第三方网址");
   }
 
   const systemPrompt = getSystemPrompt(
@@ -111,10 +117,11 @@ export const analyzeImageAndGeneratePromptsThirdParty = async (
     },
     120000
   );
-  if (!res1.ok) throw new Error(`第三方请求失败(${res1.status}): ${await res1.text()}`);
+  if (!res1.ok)
+    throw new Error(`第三方请求失败(${res1.status}): ${await res1.text()}`);
   const json1 = await res1.json();
   const rawText = extractText(json1);
-  if (!rawText) throw new Error("鏃犳硶鐢熸垚鍒嗘瀽缁撴灉");
+  if (!rawText) throw new Error("无法生成分析结果");
 
   const url2 = buildGenerateContentUrl(baseUrl, "gemini-2.5-flash");
   const formattingPrompt = `You are a data formatting assistant. Process the Input Text below.
@@ -152,7 +159,8 @@ ${rawText}`;
     },
     90000
   );
-  if (!res2.ok) throw new Error(`第三方请求失败(${res2.status}): ${await res2.text()}`);
+  if (!res2.ok)
+    throw new Error(`第三方请求失败(${res2.status}): ${await res2.text()}`);
   const json2 = await res2.json();
   const formattedText = extractText(json2);
 
@@ -178,10 +186,10 @@ export const generateImageContentThirdParty = async (
 ): Promise<string> => {
   const { apiKey, baseUrl } = getThirdPartyConfig();
   if (!apiKey) {
-    throw new Error("璇峰厛鐐瑰嚮鍙充笂瑙掋€愰厤缃?API銆戝～鍐欐偍鐨?API Key");
+    throw new Error("请先点击右上角【配置 API】填写您的 API Key");
   }
   if (!baseUrl) {
-    throw new Error("璇峰厛鍦?API 閰嶇疆涓€夋嫨绗涓夋柟璇锋眰骞跺～鍐欑涓夋柟 URL");
+    throw new Error("请先在 API 配置中选择第三方请求并填写第三方网址");
   }
 
   const parts: any[] = [];
@@ -212,9 +220,11 @@ export const generateImageContentThirdParty = async (
     },
     120000
   );
-  if (!res.ok) throw new Error(`第三方请求失败(${res.status}): ${await res.text()}`);
+  if (!res.ok)
+    throw new Error(`第三方请求失败(${res.status}): ${await res.text()}`);
   const json = await res.json();
   const base64 = extractInlineImageBase64(json);
-  if (!base64) throw new Error("No image data found.");
+  if (!base64) throw new Error("未返回图片数据");
   return `data:image/png;base64,${base64}`;
 };
+
