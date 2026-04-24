@@ -1,0 +1,19 @@
+/* 自定义动画，可 HMR 热更新不触发页面刷新 */
+
+@keyframes rock {
+  0%,
+  100% {
+    transform: rotate(-10deg);
+  }
+  50% {
+    transform: rotate(10deg);
+  }
+}
+
+.animate-rock {
+  display: block;
+  animation: rock 1.3s ease-in-out infinite;
+  transform-origin: 50% 50%;
+  transform-box: view-box;
+  will-change: transform;
+}

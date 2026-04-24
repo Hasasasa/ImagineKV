@@ -1,6 +1,8 @@
 import { GenerationConfig } from "../types";
 import { getSystemPrompt } from "../utils/systemPrompts";
 import { ParsedPrompt } from "../utils/promptParser";
+import { getModel } from "../utils/models";
+import { fetchWithTimeout, ensureOk } from "../utils/http";
 
 const getThirdPartyConfig = () => {
   const apiKey = localStorage.getItem("custom_api_key") || "";
@@ -12,27 +14,6 @@ const normalizeBaseUrl = (url: string) => url.replace(/\/+$/, "");
 
 const buildGenerateContentUrl = (baseUrl: string, model: string) =>
   `${normalizeBaseUrl(baseUrl)}/v1beta/models/${encodeURIComponent(model)}:generateContent`;
-
-const fetchWithTimeout = async (
-  input: RequestInfo | URL,
-  init: RequestInit,
-  timeoutMs = 30000
-) => {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    return await fetch(input, { ...init, signal: controller.signal });
-  } catch (e: any) {
-    if (e?.name === "AbortError") {
-      throw new Error(
-        `第三方请求超时（${Math.round(timeoutMs / 1000)}s），请检查网络/第三方网关或调低输出量`
-      );
-    }
-    throw e;
-  } finally {
-    clearTimeout(timeout);
-  }
-};
 
 const extractText = (json: any): string => {
   const parts = json?.candidates?.[0]?.content?.parts;
@@ -93,37 +74,33 @@ export const analyzeImageAndGeneratePromptsThirdParty = async (
     options?.aspectRatio
   );
 
-  const url1 = buildGenerateContentUrl(baseUrl, "gemini-3-flash-preview");
-  const res1 = await fetchWithTimeout(
-    url1,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "x-goog-api-key": apiKey,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              { text: systemPrompt },
-              { inlineData: { data: base64Image, mimeType } },
-            ],
-          },
-        ],
-        generationConfig: { maxOutputTokens: 8192 },
-      }),
+  const url1 = buildGenerateContentUrl(baseUrl, getModel('analysis'));
+  const res1 = await fetchWithTimeout(url1, {
+    method: "POST",
+    timeoutMs: 120000,
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "x-goog-api-key": apiKey,
+      "Content-Type": "application/json",
     },
-    120000
-  );
-  if (!res1.ok)
-    throw new Error(`第三方请求失败(${res1.status}): ${await res1.text()}`);
+    body: JSON.stringify({
+      contents: [
+        {
+          parts: [
+            { text: systemPrompt },
+            { inlineData: { data: base64Image, mimeType } },
+          ],
+        },
+      ],
+      generationConfig: { maxOutputTokens: 8192 },
+    }),
+  });
+  await ensureOk(res1, url1);
   const json1 = await res1.json();
   const rawText = extractText(json1);
   if (!rawText) throw new Error("无法生成分析结果");
 
-  const url2 = buildGenerateContentUrl(baseUrl, "gemini-2.5-flash");
+  const url2 = buildGenerateContentUrl(baseUrl, getModel('formatting'));
   const formattingPrompt = `You are a data formatting assistant. Process the Input Text below.
 
 Return ONLY a JSON object with this shape:
@@ -140,27 +117,23 @@ Rules:
 Input Text:
 ${rawText}`;
 
-  const res2 = await fetchWithTimeout(
-    url2,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "x-goog-api-key": apiKey,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: formattingPrompt }] }],
-        generationConfig: {
-          maxOutputTokens: 8192,
-          responseMimeType: "application/json",
-        },
-      }),
+  const res2 = await fetchWithTimeout(url2, {
+    method: "POST",
+    timeoutMs: 90000,
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "x-goog-api-key": apiKey,
+      "Content-Type": "application/json",
     },
-    90000
-  );
-  if (!res2.ok)
-    throw new Error(`第三方请求失败(${res2.status}): ${await res2.text()}`);
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: formattingPrompt }] }],
+      generationConfig: {
+        maxOutputTokens: 8192,
+        responseMimeType: "application/json",
+      },
+    }),
+  });
+  await ensureOk(res2, url2);
   const json2 = await res2.json();
   const formattedText = extractText(json2);
 
@@ -199,29 +172,25 @@ export const generateImageContentThirdParty = async (
   parts.push({ text: prompt });
 
   const url = buildGenerateContentUrl(baseUrl, config.model);
-  const res = await fetchWithTimeout(
-    url,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "x-goog-api-key": apiKey,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        contents: [{ parts }],
-        generationConfig: {
-          imageConfig: {
-            aspectRatio: config.aspectRatio,
-            imageSize: config.imageSize,
-          },
-        },
-      }),
+  const res = await fetchWithTimeout(url, {
+    method: "POST",
+    timeoutMs: 120000,
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "x-goog-api-key": apiKey,
+      "Content-Type": "application/json",
     },
-    120000
-  );
-  if (!res.ok)
-    throw new Error(`第三方请求失败(${res.status}): ${await res.text()}`);
+    body: JSON.stringify({
+      contents: [{ parts }],
+      generationConfig: {
+        imageConfig: {
+          aspectRatio: config.aspectRatio,
+          imageSize: config.imageSize,
+        },
+      },
+    }),
+  });
+  await ensureOk(res, url);
   const json = await res.json();
   const base64 = extractInlineImageBase64(json);
   if (!base64) throw new Error("未返回图片数据");

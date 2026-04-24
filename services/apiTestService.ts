@@ -1,4 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
+import { getModel } from "../utils/models";
+import { fetchWithTimeout, ensureOk } from "../utils/http";
 
 export type ApiTestMode = "official" | "third_party";
 
@@ -15,16 +17,6 @@ const normalizeBaseUrl = (url: string) => url.trim().replace(/\/+$/, "");
 const buildThirdPartyGenerateContentUrl = (baseUrl: string, model: string) =>
   `${normalizeBaseUrl(baseUrl)}/v1beta/models/${encodeURIComponent(model)}:generateContent`;
 
-const fetchWithTimeout = async (input: RequestInfo | URL, init: RequestInit, timeoutMs = 15000) => {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    return await fetch(input, { ...init, signal: controller.signal });
-  } finally {
-    clearTimeout(timeout);
-  }
-};
-
 export const testApiConnection = async (config: ApiTestConfig): Promise<void> => {
   const apiKey = (config.apiKey || "").trim();
   if (!apiKey) throw new Error("请输入 API Key");
@@ -37,22 +29,25 @@ export const testApiConnection = async (config: ApiTestConfig): Promise<void> =>
       const url = `${normalizeBaseUrl(thirdPartyUrl)}/v1/chat/completions`;
       const res = await fetchWithTimeout(url, {
         method: "POST",
+        timeoutMs: 60000,
         headers: {
           Authorization: `Bearer ${apiKey}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
+          model: getModel('analysis'),
           messages: [{ role: "user", content: "ping" }],
         }),
       });
-      if (!res.ok) throw new Error(`第三方请求失败(${res.status}): ${await res.text()}`);
+      await ensureOk(res, url);
       await res.json();
       return;
     }
 
-    const res = await fetchWithTimeout(buildThirdPartyGenerateContentUrl(thirdPartyUrl, "gemini-3-flash-preview"), {
+    const url = buildThirdPartyGenerateContentUrl(thirdPartyUrl, getModel('analysis'));
+    const res = await fetchWithTimeout(url, {
       method: "POST",
+      timeoutMs: 60000,
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "x-goog-api-key": apiKey,
@@ -64,15 +59,15 @@ export const testApiConnection = async (config: ApiTestConfig): Promise<void> =>
       }),
     });
 
-    if (!res.ok) throw new Error(`第三方请求失败(${res.status}): ${await res.text()}`);
+    await ensureOk(res, url);
     await res.json();
     return;
   }
 
   const baseUrl = normalizeBaseUrl(config.baseUrl || "https://generativelanguage.googleapis.com");
-  const ai = new GoogleGenAI({ apiKey, baseUrl });
+  const ai = new GoogleGenAI({ apiKey, httpOptions: { baseUrl } });
   const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
+    model: getModel('analysis'),
     contents: { parts: [{ text: "ping" }] },
     config: { maxOutputTokens: 8 },
   });

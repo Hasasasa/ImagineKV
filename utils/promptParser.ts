@@ -12,7 +12,35 @@ export const extractAnalysisReport = (text: string): string => {
 
 export const parseBulkPrompts = (text: string): ParsedPrompt[] => {
   const results: ParsedPrompt[] = [];
-  
+
+  // Strategy 0: Chinese poster blocks: "## 海报01" / "### Poster 1" followed by 生成提示词/画面设计构思 等
+  // Captures the whole block until next "## 海报XX" or end; uses the block body as the prompt.
+  // 允许 "海报" 前多写一个字（模型偶发 typo 如 "海海报09"），并容忍英文 Poster / Image / KV
+  const posterHeader = '(?:[海一]{0,2}海报|Poster|Image|KV)\\s*\\d+';
+  const posterBlockRegex = new RegExp(
+    `(?:^|\\n)#{2,4}\\s*(${posterHeader}[^\\n]*)\\n([\\s\\S]*?)(?=\\n#{2,4}\\s*(?:${posterHeader})|$)`,
+    'gi'
+  );
+  let posterMatch: RegExpExecArray | null;
+  let posterIdx = 0;
+  const posterText = text + "";
+  while ((posterMatch = posterBlockRegex.exec(posterText)) !== null) {
+    const rawTitle = (posterMatch[1] || '').trim();
+    const body = (posterMatch[2] || '').trim().replace(/\n---\s*$/,'').trim();
+    if (body.length < 20) continue;
+    // try to use the first subtitle/bullet after the title as a more descriptive title
+    const subtitleMatch = body.match(/^[\s*•\-]*([^\n]{2,40}?)\s*(?:\(|（|\n|$)/);
+    const niceTitle = rawTitle || (subtitleMatch ? subtitleMatch[1].trim() : `海报 ${posterIdx + 1}`);
+    results.push({
+      id: `poster-${Date.now()}-${posterIdx}`,
+      title: niceTitle,
+      prompt: body,
+      negativePrompt: ''
+    });
+    posterIdx++;
+  }
+  if (results.length > 0) return results;
+
   // Strategy 1: Priority Match for Rich Content Blocks (**{ ... }**)
   // This explicitly looks for the format requested in the system prompt to capture EVERYTHING inside the braces.
   // Regex Explanation:

@@ -16,6 +16,18 @@ interface PromptSplitterProps {
 const PromptSplitter: React.FC<PromptSplitterProps> = ({ isOpen, onClose, onImportBatch, initialText, initialPrompts, rawText }) => {
   const [items, setItems] = useState<ParsedPrompt[]>([]);
   const [reportText, setReportText] = useState('');
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [overIndex, setOverIndex] = useState<number | null>(null);
+
+  const reorder = (from: number, to: number) => {
+    if (from === to || from < 0 || to < 0) return;
+    setItems((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
+  };
 
   const normalizeEscapedNewlines = (text: string) =>
     text
@@ -33,17 +45,20 @@ const PromptSplitter: React.FC<PromptSplitterProps> = ({ isOpen, onClose, onImpo
               prompt: normalizeEscapedNewlines(p.prompt || ''),
               negativePrompt: normalizeEscapedNewlines(p.negativePrompt || ''),
             })));
-        } else if (initialText) {
-             const parsed = parseBulkPrompts(normalizeEscapedNewlines(initialText));
-             setItems(parsed.map(p => ({
-               ...p,
-               title: normalizeEscapedNewlines(p.title || ''),
-               prompt: normalizeEscapedNewlines(p.prompt || ''),
-               negativePrompt: normalizeEscapedNewlines(p.negativePrompt || ''),
-             })));
+        } else {
+             const source = rawText || initialText || '';
+             if (source) {
+               const parsed = parseBulkPrompts(normalizeEscapedNewlines(source));
+               setItems(parsed.map(p => ({
+                 ...p,
+                 title: normalizeEscapedNewlines(p.title || ''),
+                 prompt: normalizeEscapedNewlines(p.prompt || ''),
+                 negativePrompt: normalizeEscapedNewlines(p.negativePrompt || ''),
+               })));
+             }
         }
     }
-  }, [isOpen, initialText, initialPrompts]);
+  }, [isOpen, initialText, initialPrompts, rawText]);
 
   const handleItemChange = (index: number, field: keyof ParsedPrompt, value: string) => {
     const newItems = [...items];
@@ -170,20 +185,53 @@ const PromptSplitter: React.FC<PromptSplitterProps> = ({ isOpen, onClose, onImpo
             <div className="w-full lg:w-2/3 p-6 overflow-y-auto custom-scrollbar bg-white">
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 pb-6">
                     {items.map((item, index) => (
-                        <div key={item.id} className="bg-slate-50 p-4 rounded-2xl border border-slate-200 group flex flex-col gap-3">
+                        <div
+                            key={item.id}
+                            draggable
+                            onDragStart={(e) => {
+                              setDragIndex(index);
+                              e.dataTransfer.effectAllowed = 'move';
+                              try { e.dataTransfer.setData('text/plain', String(index)); } catch {}
+                            }}
+                            onDragOver={(e) => {
+                              e.preventDefault();
+                              e.dataTransfer.dropEffect = 'move';
+                              if (overIndex !== index) setOverIndex(index);
+                            }}
+                            onDragLeave={() => {
+                              if (overIndex === index) setOverIndex(null);
+                            }}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              const from = dragIndex ?? Number(e.dataTransfer.getData('text/plain'));
+                              if (!Number.isNaN(from)) reorder(from, index);
+                              setDragIndex(null);
+                              setOverIndex(null);
+                            }}
+                            onDragEnd={() => { setDragIndex(null); setOverIndex(null); }}
+                            className={`bg-slate-50 p-4 rounded-2xl border group flex flex-col gap-3 transition-all ${
+                              dragIndex === index ? 'opacity-40' : ''
+                            } ${
+                              overIndex === index && dragIndex !== null && dragIndex !== index
+                                ? 'border-indigo-400 ring-2 ring-indigo-200 bg-indigo-50/40'
+                                : 'border-slate-200'
+                            }`}
+                        >
                             <div className="flex items-center gap-2">
-                                <GripVertical className="w-4 h-4 text-slate-300" />
-                                <input 
-                                    type="text" 
+                                <GripVertical className="w-4 h-4 text-slate-400 cursor-grab active:cursor-grabbing" />
+                                <input
+                                    type="text"
                                     value={item.title}
                                     onChange={(e) => handleItemChange(index, 'title', e.target.value)}
                                     className="flex-1 font-bold text-slate-900 bg-transparent border-none focus:ring-0 p-0 text-sm"
                                 />
                                 <button onClick={() => handleDeleteItem(index)} className="text-slate-300 hover:text-rose-500"><Trash2 className="w-4 h-4" /></button>
                             </div>
-                            <textarea 
+                            <textarea
                                 value={item.prompt}
                                 onChange={(e) => handleItemChange(index, 'prompt', e.target.value)}
+                                onDragStart={(e) => e.stopPropagation()}
+                                draggable={false}
                                 className="w-full bg-white border border-slate-200 rounded-xl p-3 text-xs text-slate-600 focus:ring-2 focus:ring-indigo-500/20 h-32 resize-none custom-scrollbar"
                             />
                         </div>

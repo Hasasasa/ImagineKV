@@ -41,4 +41,6 @@ export interface BatchItem {
   status: 'idle' | 'pending' | 'success' | 'error';
   imageUrl?: string;
   error?: string;
+  startedAt?: number; // 本次生成开始时间（ms）
+  elapsedMs?: number; // 本次生成用时（ms），成功或失败后定格
 }

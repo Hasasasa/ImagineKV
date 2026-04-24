@@ -2,6 +2,7 @@ import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { GenerationConfig, BatchItem } from "../types";
 import { getSystemPrompt } from "../utils/systemPrompts";
 import { ParsedPrompt } from "../utils/promptParser";
+import { getModel } from "../utils/models";
 
 // 获取配置辅助函数
 const getApiConfig = () => {
@@ -43,7 +44,7 @@ export const analyzeImageAndGeneratePrompts = async (
     }
 
     // 初始化 AI 实例，使用自定义 Base URL
-    const ai = new GoogleGenAI({ apiKey, baseUrl });
+    const ai = new GoogleGenAI({ apiKey, httpOptions: { baseUrl } });
 
     // --- STEP 1: Creative Analysis & Generation ---
     const systemPrompt = getSystemPrompt(
@@ -56,7 +57,7 @@ export const analyzeImageAndGeneratePrompts = async (
     );
 
     const analysisResponse = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
+        model: getModel('analysis'),
         contents: {
             parts: [
                 { text: systemPrompt },
@@ -105,7 +106,7 @@ export const analyzeImageAndGeneratePrompts = async (
     };
 
     const formatterResponse = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: getModel('formatting'),
       contents: {
         parts: [
           {
@@ -168,7 +169,7 @@ export const generateImageContent = async (
   const { apiKey, baseUrl } = getApiConfig();
   if (!apiKey) throw new Error("请先点击右上角【配置 API】填写您的 API Key");
 
-  const ai = new GoogleGenAI({ apiKey, baseUrl });
+  const ai = new GoogleGenAI({ apiKey, httpOptions: { baseUrl } });
   const parts: any[] = [];
 
   if (base64Image && mimeType) {

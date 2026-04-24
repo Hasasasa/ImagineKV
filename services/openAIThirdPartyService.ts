@@ -1,27 +1,10 @@
 import { GenerationConfig } from "../types";
 import { getSystemPrompt } from "../utils/systemPrompts";
 import { ParsedPrompt } from "../utils/promptParser";
+import { getModel } from "../utils/models";
+import { fetchWithTimeout, ensureOk } from "../utils/http";
 
 const normalizeBaseUrl = (url: string) => url.trim().replace(/\/+$/, "");
-
-const fetchWithTimeout = async (
-  input: RequestInfo | URL,
-  init: RequestInit,
-  timeoutMs = 30000
-) => {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    return await fetch(input, { ...init, signal: controller.signal });
-  } catch (e: any) {
-    if (e?.name === "AbortError") {
-      throw new Error(`第三方请求超时（${Math.round(timeoutMs / 1000)}s），请检查网络/第三方网关或调低输出量`);
-    }
-    throw e;
-  } finally {
-    clearTimeout(timeout);
-  }
-};
 
 const getThirdPartyConfig = () => {
   const apiKey = localStorage.getItem("custom_api_key") || "";
@@ -39,37 +22,31 @@ const stripJsonCodeFence = (text: string) => {
 
 const postChatCompletions = async (baseUrl: string, apiKey: string, body: any) => {
   const url = `${normalizeBaseUrl(baseUrl)}/v1/chat/completions`;
-  const res = await fetchWithTimeout(
-    url,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
+  const res = await fetchWithTimeout(url, {
+    method: "POST",
+    timeoutMs: 30000,
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
     },
-    30000
-  );
-  if (!res.ok) throw new Error(`第三方请求失败(${res.status}): ${await res.text()}`);
+    body: JSON.stringify(body),
+  });
+  await ensureOk(res, url);
   return await res.json();
 };
 
 const postImagesGenerations = async (baseUrl: string, apiKey: string, body: any) => {
   const url = `${normalizeBaseUrl(baseUrl)}/v1/images/generations`;
-  const res = await fetchWithTimeout(
-    url,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
+  const res = await fetchWithTimeout(url, {
+    method: "POST",
+    timeoutMs: 60000,
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
     },
-    60000
-  );
-  if (!res.ok) throw new Error(`第三方请求失败(${res.status}): ${await res.text()}`);
+    body: JSON.stringify(body),
+  });
+  await ensureOk(res, url);
   return await res.json();
 };
 
@@ -151,7 +128,7 @@ export const analyzeImageAndGeneratePromptsOpenAI = async (
 
   const dataUrl = `data:${mimeType};base64,${base64Image}`;
   const json1 = await postChatCompletions(baseUrl, apiKey, {
-    model: "google/gemini-3-flash-preview",
+    model: getModel('analysis'),
     messages: [
       {
         role: "user",
@@ -169,7 +146,7 @@ export const analyzeImageAndGeneratePromptsOpenAI = async (
   const formattingPrompt = `你是一个数据格式化助手。请将下方 Input Text 解析为 JSON，并且只返回 JSON：\n\n{\n  \"report\": \"string\",\n  \"prompts\": [{\"id\":\"string(optional)\",\"title\":\"string\",\"prompt\":\"string\",\"negativePrompt\":\"string(optional)\"}]\n}\n\n要求：\n- report 保留 Markdown\n- prompts 的 prompt 字段必须包含完整提示块内容\n\nInput Text:\n${rawText}`;
 
   const json2 = await postChatCompletions(baseUrl, apiKey, {
-    model: "google/gemini-3-flash-preview",
+    model: getModel('formatting'),
     messages: [{ role: "user", content: formattingPrompt }],
   });
 
