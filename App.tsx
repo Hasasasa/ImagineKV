@@ -10,6 +10,7 @@ import { analyzeImageAndGeneratePromptsUnified, generateImageContentUnified } fr
 import { fileToBase64 } from './utils/imageUtils';
 import { getModel } from './utils/models';
 import { parseBulkPrompts } from './utils/promptParser';
+import { log as termLog, error as termErr } from './utils/logger';
 import ErrorModal, { ErrorModalPayload, normalizeError } from './components/ErrorModal';
 
 const App: React.FC = () => {
@@ -51,9 +52,14 @@ const App: React.FC = () => {
     base64Image: string | null,
     mime: string | null
   ) => {
+    const batchT0 = Date.now();
+    termLog('Batch', `▶ start ${items.length} items (parallel)`, { hasInputImage: !!base64Image });
     const promises = items.map(async (item) => {
+      const itemT0 = Date.now();
+      termLog('Batch', `· item start`, { id: item.id, title: item.title });
       try {
         const imageUrl = await generateImageContentUnified(item.prompt, base64Image, mime, config);
+        termLog('Batch', `✓ item done`, { id: item.id, ms: Date.now() - itemT0, urlLen: imageUrl.length });
         setBatchQueue(current =>
           current.map(i =>
             i.id === item.id
@@ -67,6 +73,7 @@ const App: React.FC = () => {
           )
         );
       } catch (err: any) {
+        termErr('Batch', `✗ item failed`, { id: item.id, ms: Date.now() - itemT0, message: err?.message });
         setBatchQueue(current =>
           current.map(i =>
             i.id === item.id
@@ -82,6 +89,7 @@ const App: React.FC = () => {
       }
     });
     await Promise.all(promises);
+    termLog('Batch', `■ all settled`, { ms: Date.now() - batchT0 });
   };
 
   const handleBatchGenerate = async () => {
@@ -132,14 +140,21 @@ const App: React.FC = () => {
       if (!prompts || prompts.length === 0) {
         throw new Error('未能从分析结果中提取到任何方案，请检查原始输出或调整模型。');
       }
-      setBatchQueue(
-        prompts.map((p) => ({
-          id: p.id,
-          title: p.title,
-          prompt: p.prompt,
-          status: 'idle',
-        }))
-      );
+      const stamp = Date.now();
+      const queue = prompts.map((p, idx) => ({
+        id: `q-${stamp}-${idx}-${Math.random().toString(36).slice(2, 8)}`,
+        title: p.title,
+        prompt: p.prompt,
+        status: 'idle' as const,
+      }));
+      const incomingIds = prompts.map(p => p.id);
+      const dupIds = incomingIds.filter((id, i) => id && incomingIds.indexOf(id) !== i);
+      termLog('Analyze', '✓ parsed prompts', {
+        count: queue.length,
+        modelGaveDuplicateIds: dupIds.length > 0,
+        duplicates: Array.from(new Set(dupIds)),
+      });
+      setBatchQueue(queue);
       setAnalyzeStatus('success');
       setAnalyzeElapsedMs(Date.now() - startedAt);
     } catch (e: any) {

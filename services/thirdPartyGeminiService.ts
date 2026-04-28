@@ -3,6 +3,7 @@ import { getSystemPrompt } from "../utils/systemPrompts";
 import { ParsedPrompt } from "../utils/promptParser";
 import { getModel } from "../utils/models";
 import { fetchWithTimeout, ensureOk } from "../utils/http";
+import { log, error as logError } from "../utils/logger";
 
 const getThirdPartyConfig = () => {
   const apiKey = localStorage.getItem("custom_api_key") || "";
@@ -172,27 +173,61 @@ export const generateImageContentThirdParty = async (
   parts.push({ text: prompt });
 
   const url = buildGenerateContentUrl(baseUrl, config.model);
-  const res = await fetchWithTimeout(url, {
-    method: "POST",
-    timeoutMs: 120000,
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "x-goog-api-key": apiKey,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      contents: [{ parts }],
-      generationConfig: {
-        imageConfig: {
-          aspectRatio: config.aspectRatio,
-          imageSize: config.imageSize,
-        },
-      },
-    }),
+  const reqId = Math.random().toString(36).slice(2, 8);
+  const t0 = Date.now();
+  log('Image', '→ request', {
+    reqId,
+    model: config.model,
+    url,
+    promptLen: prompt.length,
+    promptPreview: prompt.slice(0, 80),
+    hasInputImage: !!base64Image,
+    aspectRatio: config.aspectRatio,
+    imageSize: config.imageSize,
   });
-  await ensureOk(res, url);
+
+  let res: Response;
+  try {
+    res = await fetchWithTimeout(url, {
+      method: "POST",
+      timeoutMs: 120000,
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "x-goog-api-key": apiKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        contents: [{ parts }],
+        generationConfig: {
+          imageConfig: {
+            aspectRatio: config.aspectRatio,
+            imageSize: config.imageSize,
+          },
+        },
+      }),
+    });
+  } catch (e: any) {
+    logError('Image', '✗ fetch failed', { reqId, ms: Date.now() - t0, message: e?.message });
+    throw e;
+  }
+  log('Image', '← response', { reqId, status: res.status, ms: Date.now() - t0 });
+
+  try {
+    await ensureOk(res, url);
+  } catch (e: any) {
+    logError('Image', '✗ non-2xx', { reqId, status: e?.status, ms: Date.now() - t0, body: (e?.body || '').slice(0, 500) });
+    throw e;
+  }
+
   const json = await res.json();
   const base64 = extractInlineImageBase64(json);
+  log('Image', base64 ? '✓ got image' : '✗ no image in response', {
+    reqId,
+    ms: Date.now() - t0,
+    base64Len: base64?.length || 0,
+    topLevelKeys: Object.keys(json || {}),
+    candidateKeys: Object.keys(json?.candidates?.[0]?.content?.parts?.[0] || {}),
+  });
   if (!base64) throw new Error("未返回图片数据");
   return `data:image/png;base64,${base64}`;
 };
