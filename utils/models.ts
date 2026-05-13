@@ -6,8 +6,8 @@ export const MODEL_KINDS: ModelKind[] = ['analysis', 'formatting', 'image'];
 
 export const DEFAULT_MODELS: Record<ProtocolKind, Record<ModelKind, string>> = {
   gemini: {
-    analysis: 'gemini-2.5-pro',
-    formatting: 'gemini-2.5-flash',
+    analysis: 'gemini-3-flash-preview',
+    formatting: 'gemini-3-flash-preview',
     image: 'gemini-3-pro-image-preview',
   },
   openai: {
